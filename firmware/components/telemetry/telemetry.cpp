@@ -1,7 +1,6 @@
-#include "modules/telemetry/telemetry.h"
-#include "api_config.generated.h"
-#include "modules/measurements/measurement_source.h"
-#include "modules/wifi/wifi_manager.h"
+#include "telemetry.h"
+#include "measurement_source.h"
+#include "wifi_manager.h"
 
 #include <cinttypes>
 #include <cstdio>
@@ -20,6 +19,8 @@
 namespace {
 constexpr char kTag[] = "telemetry";
 constexpr char kFirmwareVersion[] = "0.2.0-mock";
+telemetry::Config settings = {};
+bool started = false;
 
 bool isIdentifier(const char* value, size_t minimum, size_t maximum)
 {
@@ -41,7 +42,7 @@ bool clockReady()
 void post(const char* body, int length, uint32_t sequence)
 {
     esp_http_client_config_t config = {};
-    config.url = api_config::kEndpoint;
+    config.url = settings.endpoint;
     config.method = HTTP_METHOD_POST;
     config.timeout_ms = 10000;
     config.crt_bundle_attach = esp_crt_bundle_attach;
@@ -53,7 +54,7 @@ void post(const char* body, int length, uint32_t sequence)
     }
 
     char authorization[136];
-    std::snprintf(authorization, sizeof(authorization), "Bearer %s", api_config::kDeviceToken);
+    std::snprintf(authorization, sizeof(authorization), "Bearer %s", settings.deviceToken);
     esp_err_t result = esp_http_client_set_header(client, "Content-Type", "application/json");
     if (result == ESP_OK) result = esp_http_client_set_header(client, "Authorization", authorization);
     if (result == ESP_OK) result = esp_http_client_set_post_field(client, body, length);
@@ -81,7 +82,7 @@ void run(void*)
     }
     uint32_t sequence = 0;
     bool sntpStarted = false;
-    const bool https = std::strncmp(api_config::kEndpoint, "https://", 8) == 0;
+    const bool https = std::strncmp(settings.endpoint, "https://", 8) == 0;
 
     while (true) {
         if (!wifi_manager::isConnected()) {
@@ -112,7 +113,7 @@ void run(void*)
                     "\"uptimeMs\":%" PRId64 ",\"windowSeconds\":0,\"sampleCount\":1,"
                     "\"pm1_ug_m3\":%.1f,\"pm25_ug_m3\":%.1f,\"pm10_ug_m3\":%.1f,"
                     "\"firmwareVersion\":\"%s\"}",
-                    api_config::kDeviceId, reading.source, bootId, sequence, measuredAt, uptimeMs,
+                    settings.deviceId, reading.source, bootId, sequence, measuredAt, uptimeMs,
                     static_cast<double>(reading.pm1), static_cast<double>(reading.pm25),
                     static_cast<double>(reading.pm10), kFirmwareVersion);
                 if (length > 0 && static_cast<size_t>(length) < sizeof(body)) {
@@ -124,27 +125,34 @@ void run(void*)
             }
         }
         // A fresh sample on each cycle. No backlog/retry queue in this first iteration.
-        vTaskDelay(pdMS_TO_TICKS(api_config::kIntervalSeconds * 1000));
+        vTaskDelay(pdMS_TO_TICKS(settings.intervalSeconds * 1000));
     }
 }
 }
 
 namespace telemetry {
-void start()
+void start(const Config& config)
 {
-    static_assert(api_config::kIntervalSeconds >= 5 && api_config::kIntervalSeconds <= 3600,
-                  "Telemetry interval must be between 5 and 3600 seconds");
-    const bool https = std::strncmp(api_config::kEndpoint, "https://", 8) == 0;
-    const bool http = std::strncmp(api_config::kEndpoint, "http://", 7) == 0;
-    if (!(https || (http && api_config::kAllowInsecureHttp)) ||
-        !isIdentifier(api_config::kDeviceId, 1, 64) ||
-        !isIdentifier(api_config::kDeviceToken, 32, 128)) {
-        ESP_LOGW(kTag, "Set endpoint/device token in main/config/api_config.local.h; telemetry disabled.");
+    if (started) return;
+    if (!config.endpoint || !config.deviceId || !config.deviceToken ||
+        config.intervalSeconds < 5 || config.intervalSeconds > 3600) {
+        ESP_LOGW(kTag, "Invalid telemetry configuration; interval must be 5-3600 seconds.");
+        return;
+    }
+    settings = config;
+    const bool https = std::strncmp(settings.endpoint, "https://", 8) == 0;
+    const bool http = std::strncmp(settings.endpoint, "http://", 7) == 0;
+    if (!(https || (http && settings.allowInsecureHttp)) ||
+        !isIdentifier(settings.deviceId, 1, 64) ||
+        !isIdentifier(settings.deviceToken, 32, 128)) {
+        ESP_LOGW(kTag, "Invalid endpoint/device token; telemetry disabled.");
         return;
     }
     if (http) ESP_LOGW(kTag, "Explicit LAN HTTP mode: transport is unencrypted.");
     if (xTaskCreate(run, "telemetry", 12288, nullptr, 5, nullptr) != pdPASS) {
         ESP_LOGE(kTag, "Could not start telemetry task.");
+    } else {
+        started = true;
     }
 }
 }

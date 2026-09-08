@@ -1,4 +1,4 @@
-#include "modules/wifi/wifi_manager.h"
+#include "wifi_manager.h"
 
 #include <cstring>
 #include <atomic>
@@ -10,7 +10,6 @@
 #include "esp_wifi.h"
 #include "nvs_flash.h"
 
-#include "wifi_config.generated.h"
 
 namespace {
 constexpr char kTag[] = "wifi_manager";
@@ -62,15 +61,17 @@ bool isConnected()
     return connected.load();
 }
 
-void start()
+void start(const Config& settings)
 {
     // Validate before starting Wi-Fi; do not log SSID or password.
-    constexpr size_t ssidLength = sizeof(wifi_config::kSsid) - 1;
-    constexpr size_t passwordLength = sizeof(wifi_config::kPassword) - 1;
-    static_assert(ssidLength <= 32, "Wi-Fi SSID must not exceed 32 bytes");
-    static_assert(passwordLength <= 63, "Wi-Fi passphrase must not exceed 63 bytes");
-    if (ssidLength == 0 || passwordLength < 8) {
-        ESP_LOGW(kTag, "Configure main/config/wifi_config.local.h: SSID and 8-63 byte passphrase; rebuild and flash.");
+    if (!settings.ssid || !settings.password) {
+        ESP_LOGW(kTag, "Wi-Fi configuration is missing.");
+        return;
+    }
+    const size_t ssidLength = std::strlen(settings.ssid);
+    const size_t passwordLength = std::strlen(settings.password);
+    if (ssidLength == 0 || ssidLength > 32 || passwordLength < 8 || passwordLength > 63) {
+        ESP_LOGW(kTag, "Wi-Fi requires 1-32 byte SSID and 8-63 byte passphrase.");
         return;
     }
 
@@ -94,8 +95,8 @@ void start()
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_LOST_IP, onEvent, nullptr));
 
     wifi_config_t config = {};
-    std::memcpy(config.sta.ssid, wifi_config::kSsid, ssidLength);
-    std::memcpy(config.sta.password, wifi_config::kPassword, passwordLength);
+    std::memcpy(config.sta.ssid, settings.ssid, ssidLength);
+    std::memcpy(config.sta.password, settings.password, passwordLength);
     config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
     config.sta.pmf_cfg.capable = true;
     config.sta.pmf_cfg.required = false;

@@ -32,17 +32,31 @@ scripts/esp.sh автоматически активирует SDK и ищет C
 
 Общая учебная документация при работе в исходной рабочей папке лежит в ../docs/. Для самостоятельной сборки она не нужна.
 
-## Организация main/
+## Компоненты ESP-IDF
 
 ```text
-main/
-├── main.cpp
-├── CMakeLists.txt
-├── config/                 # example и игнорируемые local настройки
-└── modules/
-    ├── wifi/               # подключение к сети
-    ├── telemetry/          # время и HTTP-отправка
-    └── measurements/       # интерфейс показаний и mock-реализация
+firmware/
+├── main/
+│   ├── main.cpp
+│   ├── CMakeLists.txt
+│   └── config/
+└── components/
+    ├── wifi_manager/
+    │   ├── CMakeLists.txt
+    │   ├── include/wifi_manager.h
+    │   └── wifi_manager.cpp
+    ├── telemetry/
+    │   ├── CMakeLists.txt
+    │   ├── include/telemetry.h
+    │   └── telemetry.cpp
+    └── measurements/
+        ├── CMakeLists.txt
+        ├── include/measurement_source.h
+        └── mock_measurement_source.cpp
 ```
 
-main.cpp — точка запуска, как bootstrap в NestJS. Каждая папка modules группирует одну ответственность; .h объявляет публичные функции, .cpp содержит реализацию. Это обычные C++ модули по структуре каталогов, без декораторов и DI-контейнера NestJS. Все они пока собираются как один ESP-IDF component main через CMakeLists.txt.
+main.cpp читает сгенерированные настройки из main/config и вызывает start(config). Компоненты не подключают конфиги приложения. Публичные типы Config и функции объявлены в include/, реализация — в .cpp. Каждый компонент объявляет свои зависимости через PRIV_REQUIRES, а INCLUDE_DIRS экспортирует только публичные заголовки.
+
+Зависимости: main → wifi_manager + telemetry; telemetry → wifi_manager + measurements + сетевые компоненты ESP-IDF. Обратной зависимости от main нет. Это компоненты сборки ESP-IDF, без NestJS-декораторов или DI-контейнера.
+
+wifi_manager копирует credentials в драйвер при start(). telemetry копирует структуру Config, но хранит указатели на строки: строки должны жить всё время работы программы и не меняться. В main используются inline constexpr массивы со статическим временем жизни. start вызывается из app_main однократно. Компоненты проверяют параметры во время запуска; неправильный конфиг не включает соответствующую функциональность.

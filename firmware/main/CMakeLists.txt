@@ -12,11 +12,7 @@ if(NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 idf_component_register(
-    SRCS
-        "main.cpp"
-        "modules/wifi/wifi_manager.cpp"
-        "modules/telemetry/telemetry.cpp"
-        "modules/measurements/mock_measurement_source.cpp"
-    INCLUDE_DIRS "." "${CMAKE_CURRENT_BINARY_DIR}/generated"
-    PRIV_REQUIRES esp_wifi esp_event esp_netif nvs_flash esp_timer esp_http_client mbedtls
+    SRCS "main.cpp"
+    INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    PRIV_REQUIRES wifi_manager telemetry
 )
