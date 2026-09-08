@@ -1,0 +1,4 @@
+.vscode
+/docs
+/firmware/build
+/firmware/sdconfig
