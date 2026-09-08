@@ -1,4 +1,10 @@
 .vscode
 /docs
 /firmware/build
-/firmware/sdconfig
+/firmware/sdkconfig
+/firmware/sdkconfig.old
+/firmware/main/wifi_config.local.h
+/firmware/main/api_config.local.h
+
+/.local/
+.DS_Store
