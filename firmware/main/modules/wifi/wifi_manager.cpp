@@ -1,4 +1,4 @@
-#include "wifi_manager.h"
+#include "modules/wifi/wifi_manager.h"
 
 #include <cstring>
 #include <atomic>
@@ -70,7 +70,7 @@ void start()
     static_assert(ssidLength <= 32, "Wi-Fi SSID must not exceed 32 bytes");
     static_assert(passwordLength <= 63, "Wi-Fi passphrase must not exceed 63 bytes");
     if (ssidLength == 0 || passwordLength < 8) {
-        ESP_LOGW(kTag, "Configure main/wifi_config.local.h: SSID and 8-63 byte passphrase; rebuild and flash.");
+        ESP_LOGW(kTag, "Configure main/config/wifi_config.local.h: SSID and 8-63 byte passphrase; rebuild and flash.");
         return;
     }
 

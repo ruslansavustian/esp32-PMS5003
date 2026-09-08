@@ -1,7 +1,7 @@
-#include "telemetry.h"
+#include "modules/telemetry/telemetry.h"
 #include "api_config.generated.h"
-#include "measurement_source.h"
-#include "wifi_manager.h"
+#include "modules/measurements/measurement_source.h"
+#include "modules/wifi/wifi_manager.h"
 
 #include <cinttypes>
 #include <cstdio>
@@ -139,7 +139,7 @@ void start()
     if (!(https || (http && api_config::kAllowInsecureHttp)) ||
         !isIdentifier(api_config::kDeviceId, 1, 64) ||
         !isIdentifier(api_config::kDeviceToken, 32, 128)) {
-        ESP_LOGW(kTag, "Set endpoint/device token in main/api_config.local.h; telemetry disabled.");
+        ESP_LOGW(kTag, "Set endpoint/device token in main/config/api_config.local.h; telemetry disabled.");
         return;
     }
     if (http) ESP_LOGW(kTag, "Explicit LAN HTTP mode: transport is unencrypted.");

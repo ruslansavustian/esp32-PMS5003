@@ -8,3 +8,5 @@
 
 /.local/
 .DS_Store
+
+/firmware/main/config/*.local.h

@@ -1,5 +1,5 @@
-#include "wifi_manager.h"
-#include "telemetry.h"
+#include "modules/wifi/wifi_manager.h"
+#include "modules/telemetry/telemetry.h"
 
 extern "C" void app_main()
 {
