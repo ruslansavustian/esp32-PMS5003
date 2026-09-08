@@ -18,7 +18,7 @@
 
 namespace {
 constexpr char kTag[] = "telemetry";
-constexpr char kFirmwareVersion[] = "0.2.0-mock";
+constexpr char kFirmwareVersion[] = "0.2.1-mock";
 telemetry::Config settings = {};
 bool started = false;
 
@@ -149,7 +149,10 @@ void start(const Config& config)
         return;
     }
     if (http) ESP_LOGW(kTag, "Explicit LAN HTTP mode: transport is unencrypted.");
-    if (xTaskCreate(run, "telemetry", 12288, nullptr, 5, nullptr) != pdPASS) {
+    // Synchronous TLS can spend seconds in CPU-bound ECDH calculations.
+    // Share priority with IDLE so FreeRTOS time slicing lets its watchdog hook run.
+    // A delay after perform() cannot help while the TLS call is still running.
+    if (xTaskCreate(run, "telemetry", 12288, nullptr, tskIDLE_PRIORITY, nullptr) != pdPASS) {
         ESP_LOGE(kTag, "Could not start telemetry task.");
     } else {
         started = true;
