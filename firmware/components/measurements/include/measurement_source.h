@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 
 namespace measurement_source {
 struct Reading {
@@ -6,8 +7,16 @@ struct Reading {
     float pm25;
     float pm10;
     const char* source;
+    int64_t receivedAtUs;
 };
 
-// Replace the mock implementation with UART parsing when PMS5003 is wired.
-Reading read();
+struct Config { int rx_gpio; };
+enum class Status { Waiting, WarmingUp, Ready, Stale };
+
+// Start once from app_main; UART is consumed independently of the network task.
+bool start(const Config& config);
+// Returns false during warmup, silence or failure; never synthesizes zero PM.
+bool read(Reading& out);
+Status status();
+const char* statusName(Status status);
 }

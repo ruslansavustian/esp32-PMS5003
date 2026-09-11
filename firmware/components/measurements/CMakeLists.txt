@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "mock_measurement_source.cpp"
+    SRCS "pms5003_source.cpp" "pms5003_parser.cpp"
     INCLUDE_DIRS "include"
-    PRIV_REQUIRES esp_hw_support
+    PRIV_REQUIRES esp_driver_uart esp_driver_gpio esp_timer freertos log
 )

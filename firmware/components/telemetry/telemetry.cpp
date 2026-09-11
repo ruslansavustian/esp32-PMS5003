@@ -18,7 +18,7 @@
 
 namespace {
 constexpr char kTag[] = "telemetry";
-constexpr char kFirmwareVersion[] = "0.2.1-mock";
+constexpr char kFirmwareVersion[] = "0.3.0-pms5003";
 telemetry::Config settings = {};
 bool started = false;
 
@@ -62,7 +62,7 @@ void post(const char* body, int length, uint32_t sequence)
     if (result == ESP_OK) {
         const int status = esp_http_client_get_status_code(client);
         if (status == 202) {
-            ESP_LOGI(kTag, "Mock sample sequence=%" PRIu32 " accepted (HTTP 202).", sequence);
+            ESP_LOGI(kTag, "PMS5003 sample sequence=%" PRIu32 " accepted (HTTP 202).", sequence);
         } else {
             ESP_LOGW(kTag, "HTTP %d; sample not confirmed. Check API configuration.", status);
         }
@@ -97,15 +97,23 @@ void run(void*)
             if (https && !clockReady()) {
                 ESP_LOGI(kTag, "Waiting for clock sync before verified HTTPS...");
             } else {
-                const auto reading = measurement_source::read();
+                measurement_source::Reading reading{};
+                if (!measurement_source::read(reading)) {
+                    ESP_LOGW(kTag, "Skipping send: %s",
+                             measurement_source::statusName(measurement_source::status()));
+                    vTaskDelay(pdMS_TO_TICKS(settings.intervalSeconds * 1000));
+                    continue;
+                }
                 char measuredAt[32] = "null";
                 if (clockReady()) {
-                    const std::time_t now = std::time(nullptr);
+                    // Preserve sample age rather than labelling a cached sample as measured now.
+                    const std::time_t now = std::time(nullptr) -
+                        (esp_timer_get_time() - reading.receivedAtUs) / 1000000;
                     std::tm utc = {};
                     gmtime_r(&now, &utc);
                     std::strftime(measuredAt, sizeof(measuredAt), "\"%Y-%m-%dT%H:%M:%SZ\"", &utc);
                 }
-                const int64_t uptimeMs = esp_timer_get_time() / 1000;
+                const int64_t uptimeMs = reading.receivedAtUs / 1000;
                 char body[768];
                 const int length = std::snprintf(body, sizeof(body),
                     "{\"schemaVersion\":1,\"deviceId\":\"%s\",\"source\":\"%s\","
