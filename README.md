@@ -69,13 +69,13 @@ firmware/
     │   └── telemetry.cpp
     └── measurements/
         ├── CMakeLists.txt
+        ├── measurement_source.cpp
         ├── include/measurement_source.h
-        ├── pms5003_source.cpp
         ├── pms5003_parser.cpp / .h
-        └── sample_store.h
+        └── include/sample_store.h
 ```
 
-main.cpp читает сгенерированные настройки из main/config и вызывает start(config). Компоненты не подключают конфиги приложения. Публичные типы Config и функции объявлены в include/, реализация — в .cpp. Каждый компонент объявляет свои зависимости через PRIV_REQUIRES, а INCLUDE_DIRS экспортирует только публичные заголовки.
+Реализация measurement_source, включая тело start и задачу чтения, находится в measurements/measurement_source.cpp; заголовок measurement_source.h описывает интерфейс для main и telemetry. Парсер и SampleStore остаются в measurements. main.cpp читает сгенерированные настройки из main/config и вызывает start(config). Компоненты не подключают конфиги приложения. Публичные типы Config и функции объявлены в include/, реализация — в .cpp. Каждый компонент объявляет свои зависимости через PRIV_REQUIRES, а INCLUDE_DIRS экспортирует только публичные заголовки.
 
 Зависимости: main → measurements + wifi_manager + telemetry; telemetry → wifi_manager + measurements + сетевые компоненты ESP-IDF. Обратной зависимости от main нет. Это компоненты сборки ESP-IDF, без NestJS-декораторов или DI-контейнера.
 

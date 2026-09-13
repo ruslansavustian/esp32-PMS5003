@@ -6,6 +6,7 @@
 #include "esp_log.h"
 #include "config/sensor_config.h"
 
+// Точка входа: ESP-IDF вызывает эту функцию после подготовки системы.
 extern "C" void app_main()
 {
     if (!measurement_source::start({sensor_config::kRxGpio})) {
